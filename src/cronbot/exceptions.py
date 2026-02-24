@@ -205,7 +205,10 @@ def to_cli_error(exc: Exception, stage: str) -> CliError:
                 code="BULK_FLAG_USAGE_INVALID",
                 title="Bulk Flag Usage Invalid",
                 intent="Bulk-only flags were provided without enabling bulk mode.",
-                resolution="Use `--bulk` when passing `--force`, `--resume`, or `--csv-file`.",
+                resolution=(
+                    "Use `--bulk` when passing `--resume`, `--csv-file`, `--results-file`, "
+                    "`--artifacts-dir`, or `--no-screenshot-on-failure`."
+                ),
                 technical=msg,
                 exit_code=2,
             )

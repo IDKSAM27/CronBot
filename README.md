@@ -1,6 +1,6 @@
 # Cronbot CLI
 
-Cronbot automates internship diary entry with a human-in-the-loop flow:
+Cronbot automates internship diary entry with human-in-the-loop by default and force mode for fast submission.
 
 1. Generate a draft from your short task summary (Gemini)
 2. Open JSON in a local editor for manual review
@@ -16,6 +16,7 @@ It is designed to reduce repetitive form filling while keeping final user contro
 - Datepicker automation with month/year/day handling
 - Browser login session reuse via `browser_state.json`
 - Field-level character limits from `.env`
+- Single-run force mode with `-f` / `--force` (`-force` alias supported)
 - Bulk CSV mode with `--bulk` (interactive) and `--bulk --force` (auto-submit)
 - Resume/idempotency support with row-level result history
 - Detailed run logs and optional failure screenshots for browser-stage failures
@@ -133,6 +134,16 @@ Run the CLI:
 cronbot
 ```
 
+Single-run force mode (no JSON preview/editor, auto-save after browser fill):
+
+```bash
+cronbot -f
+cronbot --force
+cronbot -force
+cronjob -f
+cronjob -force
+```
+
 Theme options:
 
 ```bash
@@ -194,7 +205,7 @@ Copy-Item bulk.csv.example bulk.csv
 ### Bulk Flags
 
 - `--bulk`: enable CSV-driven batch run
-- `--force` / `-f`: skip JSON editor and save-confirmation pause, auto-click Save
+- `--force` / `-f`: in bulk mode, skip JSON editor and save-confirmation pause, auto-click Save for each row
 - `--resume`: skip rows already marked `success` in results CSV
 - `--csv-file <path>`: override default `bulk.csv`
 - `--results-file <path>`: override default `bulk_results.csv`
@@ -209,6 +220,15 @@ Copy-Item bulk.csv.example bulk.csv
 4. Edit JSON in local editor
 5. Browser opens and fills internship diary
 6. Final save confirmation from browser or CLI
+
+`cronbot -f` / `cronbot -force`:
+
+1. Choose date (`today` or custom `DD-MM-YYYY`)
+2. Enter a one-line task summary
+3. Generate LLM payload
+4. Skip JSON preview/editor
+5. Fill browser form
+6. Auto-click Save and finish
 
 ## Bulk Runtime Flow
 
@@ -243,6 +263,7 @@ Bulk mode can be interactive or unattended (with `--bulk --force`).
 
 - Use `cronbot` or `cronbot --bulk` when manual validation is required
 - Use `cronbot --bulk --force` for unattended scheduler jobs
+- `cronbot -f` is semi-automatic (still asks date and task in CLI)
 
 Example cron entry (Linux/macOS):
 

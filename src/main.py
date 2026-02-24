@@ -88,7 +88,7 @@ def _generate_entry_with_policy(
 
 
 
-def _run_single_submission(config: dict[str, Any]) -> None:
+def _run_single_submission(config: dict[str, Any], force: bool = False) -> None:
     today = datetime.now().strftime("%d-%m-%Y")
     target_date = ui.ask_date(today)
     raw_task = ui.ask_task()
@@ -122,16 +122,20 @@ def _run_single_submission(config: dict[str, Any]) -> None:
         ui.print_warning(f"LLM length policy: {warning}")
 
     ui.print_success("Draft generated.")
-    ui.print_entry_preview(entry_data, "LLM Draft")
+    if force:
+        ui.print_substep("Force mode enabled: skipping JSON preview/editor.")
+        final_data = entry_data
+    else:
+        ui.print_entry_preview(entry_data, "LLM Draft")
 
-    ui.print_step("Opening local editor for your review.")
-    ui.print_editor_intro()
-    try:
-        final_data = interactive_edit(entry_data)
-    except Exception as e:
-        _exit_with_stage_error("editor", e)
+        ui.print_step("Opening local editor for your review.")
+        ui.print_editor_intro()
+        try:
+            final_data = interactive_edit(entry_data)
+        except Exception as e:
+            _exit_with_stage_error("editor", e)
 
-    ui.print_entry_preview(final_data, "Reviewed Payload")
+        ui.print_entry_preview(final_data, "Reviewed Payload")
 
     ui.print_step("Initializing browser automation.")
     with sync_playwright() as p:
@@ -145,9 +149,13 @@ def _run_single_submission(config: dict[str, Any]) -> None:
             bot.authenticate_and_navigate()
             bot.fill_initial_selection(target_date)
             bot.fill_and_submit_diary(final_data)
-            ui.print_step("Waiting for save confirmation.")
-            ui.print_save_gate()
-            bot.wait_for_user_to_save(ui.check_cli_save_input)
+            if force:
+                ui.print_substep("Force mode enabled: auto-clicking Save.")
+                bot.click_save_button()
+            else:
+                ui.print_step("Waiting for save confirmation.")
+                ui.print_save_gate()
+                bot.wait_for_user_to_save(ui.check_cli_save_input)
             ui.print_success("Diary entry submitted successfully.")
         except Exception as e:
             _exit_with_stage_error("browser", e)
@@ -468,7 +476,7 @@ def submit(
         False,
         "--force",
         "-f",
-        help="Bulk mode only: skip editor/save confirmation and auto-submit each row.",
+        help="Skip JSON review + manual save confirmation. In bulk mode, applies to each row.",
     ),
     csv_file: Path = typer.Option(
         Path("bulk.csv"),
@@ -512,15 +520,14 @@ def submit(
     except Exception as e:
         _exit_with_stage_error("config", e)
 
-    bulk_flags_used = (
-        force
-        or resume
+    bulk_only_flags_used = (
+        resume
         or csv_file != Path("bulk.csv")
         or results_file != Path("bulk_results.csv")
         or artifacts_dir != Path("bulk_artifacts")
         or not screenshot_on_failure
     )
-    if bulk_flags_used and not bulk:
+    if bulk_only_flags_used and not bulk:
         _exit_with_stage_error(
             "bulk",
             BulkFlagUsageError("Bulk-only flags require --bulk."),
@@ -538,7 +545,7 @@ def submit(
         )
         return
 
-    _run_single_submission(config)
+    _run_single_submission(config, force=force)
 
 
 
