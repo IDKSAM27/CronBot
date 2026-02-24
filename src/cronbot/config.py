@@ -39,6 +39,25 @@ def _parse_non_negative_int_env(name: str, default: int) -> int:
     return value
 
 
+def _parse_retry_limits() -> dict[str, int]:
+    """Builds retry settings for retryable LLM failures (rate-limit/quota bursts)."""
+    base_seconds = _parse_positive_int_env("LLM_RATE_LIMIT_RETRY_BASE_SECONDS", 8)
+    max_wait_seconds = _parse_positive_int_env("LLM_RATE_LIMIT_RETRY_MAX_WAIT_SECONDS", 300)
+    max_retries = _parse_non_negative_int_env("LLM_RATE_LIMIT_MAX_RETRIES", 0)
+
+    if max_wait_seconds < base_seconds:
+        raise ValueError(
+            "LLM_RATE_LIMIT_RETRY_MAX_WAIT_SECONDS must be >= "
+            f"LLM_RATE_LIMIT_RETRY_BASE_SECONDS. Received base={base_seconds}, max_wait={max_wait_seconds}."
+        )
+
+    return {
+        "base_seconds": base_seconds,
+        "max_wait_seconds": max_wait_seconds,
+        "max_retries": max_retries,
+    }
+
+
 def _build_char_limits() -> dict[str, dict[str, int]]:
     """Builds field character constraints from .env with sane defaults."""
     limits = {
@@ -85,6 +104,7 @@ def load_config() -> dict[str, Any]:
         raise ValueError(f"Missing required environment variables: {', '.join(missing)}\nPlease update your .env file.")
 
     char_limits = _build_char_limits()
+    retry_limits = _parse_retry_limits()
 
     return {
         "EMAIL": email,
@@ -93,6 +113,9 @@ def load_config() -> dict[str, Any]:
         "COMPULSORY_SKILLS": [s.strip() for s in compulsory_string.split(",") if s.strip()],
         "FIELD_CHAR_LIMITS": char_limits,
         "FIELD_CHAR_TOLERANCE": _parse_non_negative_int_env("FIELD_CHAR_TOLERANCE", 40),
+        "LLM_RATE_LIMIT_RETRY_BASE_SECONDS": retry_limits["base_seconds"],
+        "LLM_RATE_LIMIT_RETRY_MAX_WAIT_SECONDS": retry_limits["max_wait_seconds"],
+        "LLM_RATE_LIMIT_MAX_RETRIES": retry_limits["max_retries"],
         "LOGIN_URL": "https://vtu.internyet.in/sign-in",
         "DIARY_URL": "https://vtu.internyet.in/dashboard/student/student-diary",
         "STATE_FILE": Path("browser_state.json")

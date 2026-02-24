@@ -1,5 +1,6 @@
 import re
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, Any, Callable
 
 from playwright.sync_api import BrowserContext
@@ -492,6 +493,12 @@ class DiaryAutomator:
             self.page.goto(self.config["DIARY_URL"])
             self.page.wait_for_load_state("networkidle")
 
+    def open_diary_page(self):
+        """Navigates to the diary selection page for a fresh entry."""
+        self.page.goto(self.config["DIARY_URL"])
+        self.page.wait_for_load_state("networkidle")
+        self.page.wait_for_timeout(500)
+
     def fill_initial_selection(self, target_date: str):
         self.log(f"Selecting internship and setting date: {target_date}")
         self.page.wait_for_selector("text='Select Internship'", timeout=10000)
@@ -610,6 +617,20 @@ class DiaryAutomator:
 
         except Exception as e:
             self.log(f"Waiting for save interrupted: {e}")
-        
+
+    def click_save_button(self, timeout_ms: int = 15000):
+        """Clicks Save button automatically and waits briefly for submit to complete."""
+        save_button = self.page.locator("button:has-text('Save')").first
+        save_button.wait_for(state="visible", timeout=timeout_ms)
+        save_button.click(timeout=timeout_ms)
+        self.page.wait_for_timeout(3000)
+        self.log("Auto-save completed.")
+
+    def capture_screenshot(self, output_path: Path):
+        """Captures a screenshot of current browser page to assist debugging."""
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        self.page.screenshot(path=str(output_path), full_page=True)
+        self.log(f"Failure screenshot saved: {output_path}")
+
     def close(self):
         self.browser.close()

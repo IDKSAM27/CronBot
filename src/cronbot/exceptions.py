@@ -43,13 +43,24 @@ def to_cli_error(exc: Exception, stage: str) -> CliError:
         )
 
     if stage_name == "config":
-        if any(token in lower for token in ["_min_chars", "_max_chars", "field_char_tolerance", "must be an integer", "must be >= 1", "must be >= 0"]):
+        if any(token in lower for token in [
+            "_min_chars",
+            "_max_chars",
+            "field_char_tolerance",
+            "llm_rate_limit_retry_base_seconds",
+            "llm_rate_limit_retry_max_wait_seconds",
+            "llm_rate_limit_max_retries",
+            "must be an integer",
+            "must be >= 1",
+            "must be >= 0",
+        ]):
             return CliError(
                 code="CONFIG_INVALID_CHAR_LIMITS",
                 title="Invalid Character Limit Config",
-                intent="One or more character-limit values in `.env` are invalid.",
+                intent="One or more numeric validation/retry values in `.env` are invalid.",
                 resolution=(
                     "Set numeric values for *_MIN_CHARS, *_MAX_CHARS, FIELD_CHAR_TOLERANCE, "
+                    "LLM_RATE_LIMIT_* retry values, "
                     "and ensure min is not greater than max."
                 ),
                 technical=msg,
@@ -71,6 +82,17 @@ def to_cli_error(exc: Exception, stage: str) -> CliError:
         )
 
     if stage_name == "llm":
+        if "rate limit retries exhausted" in lower:
+            return CliError(
+                code="LLM_RATE_LIMIT_RETRY_EXHAUSTED",
+                title="LLM Rate Limit Retries Exhausted",
+                intent="Gemini remained rate-limited after configured retry attempts.",
+                resolution=(
+                    "Increase `LLM_RATE_LIMIT_MAX_RETRIES` (use 0 for unlimited) or wait and rerun. "
+                    "You can also increase retry wait settings in `.env`."
+                ),
+                technical=msg,
+            )
         if "outside configured limits" in lower or "must be a string" in lower:
             return CliError(
                 code="LLM_CONSTRAINT_MISMATCH",
@@ -158,6 +180,40 @@ def to_cli_error(exc: Exception, stage: str) -> CliError:
             title="Browser Automation Failed",
             intent="Could not complete browser automation flow.",
             resolution="Rerun and keep browser in foreground. If repeated, share latest logs for selector update.",
+            technical=msg,
+        )
+
+    if stage_name == "bulk":
+        if "bulk csv file not found" in lower:
+            return CliError(
+                code="BULK_CSV_NOT_FOUND",
+                title="Bulk CSV Not Found",
+                intent="Bulk mode could not find the requested CSV file.",
+                resolution="Create the CSV in project root or pass `--csv-file <path>`.",
+                technical=msg,
+            )
+        if "missing required headers" in lower:
+            return CliError(
+                code="BULK_CSV_HEADERS_INVALID",
+                title="Bulk CSV Headers Invalid",
+                intent="Bulk CSV headers do not match expected schema.",
+                resolution="Use exactly these CSV headers: `date,description`.",
+                technical=msg,
+            )
+        if "requires --bulk" in lower or "require --bulk" in lower:
+            return CliError(
+                code="BULK_FLAG_USAGE_INVALID",
+                title="Bulk Flag Usage Invalid",
+                intent="Bulk-only flags were provided without enabling bulk mode.",
+                resolution="Use `--bulk` when passing `--force`, `--resume`, or `--csv-file`.",
+                technical=msg,
+                exit_code=2,
+            )
+        return CliError(
+            code="BULK_RUN_FAILED",
+            title="Bulk Run Failed",
+            intent="Bulk execution could not be completed.",
+            resolution="Check CSV format, retry settings, and row-level logs, then rerun.",
             technical=msg,
         )
 
