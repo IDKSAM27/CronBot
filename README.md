@@ -118,6 +118,8 @@ Do not commit `.env` to source control.
 | `LLM_RATE_LIMIT_RETRY_BASE_SECONDS` | No | `8` | Base backoff seconds for retryable Gemini rate-limit errors |
 | `LLM_RATE_LIMIT_RETRY_MAX_WAIT_SECONDS` | No | `300` | Maximum wait seconds per retry |
 | `LLM_RATE_LIMIT_MAX_RETRIES` | No | `0` | Retry attempts for rate limits (`0` means unlimited retries) |
+| `BROWSER_DEFAULT_TIMEOUT_MS` | No | `45000` | Default UI wait timeout for selectors/actions |
+| `BROWSER_NAV_TIMEOUT_MS` | No | `120000` | Navigation/page-load timeout |
 
 Validation rules:
 
@@ -125,6 +127,7 @@ Validation rules:
 - `FIELD_CHAR_TOLERANCE` must be a non-negative integer
 - Each `MIN` must be `<= MAX`
 - `LLM_RATE_LIMIT_RETRY_MAX_WAIT_SECONDS` must be `>= LLM_RATE_LIMIT_RETRY_BASE_SECONDS`
+- `BROWSER_NAV_TIMEOUT_MS` must be `>= BROWSER_DEFAULT_TIMEOUT_MS`
 
 ## Usage
 
@@ -292,6 +295,15 @@ Install OS dependencies:
 ```bash
 python3 -m playwright install-deps chromium
 ```
+
+### Browser timeouts on weak networks
+
+- Increase browser wait settings in `.env`:
+  - `BROWSER_DEFAULT_TIMEOUT_MS=60000`
+  - `BROWSER_NAV_TIMEOUT_MS=180000`
+- Defaults are already tuned for slower networks:
+  - `BROWSER_DEFAULT_TIMEOUT_MS=45000`
+  - `BROWSER_NAV_TIMEOUT_MS=120000`
 
 ### Config errors for char limits
 

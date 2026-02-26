@@ -50,6 +50,8 @@ def to_cli_error(exc: Exception, stage: str) -> CliError:
             "llm_rate_limit_retry_base_seconds",
             "llm_rate_limit_retry_max_wait_seconds",
             "llm_rate_limit_max_retries",
+            "browser_default_timeout_ms",
+            "browser_nav_timeout_ms",
             "must be an integer",
             "must be >= 1",
             "must be >= 0",

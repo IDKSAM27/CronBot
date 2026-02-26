@@ -58,6 +58,23 @@ def _parse_retry_limits() -> dict[str, int]:
     }
 
 
+def _parse_browser_timeouts() -> dict[str, int]:
+    """Builds browser timeout settings for slow or unstable network conditions."""
+    default_timeout_ms = _parse_positive_int_env("BROWSER_DEFAULT_TIMEOUT_MS", 45000)
+    navigation_timeout_ms = _parse_positive_int_env("BROWSER_NAV_TIMEOUT_MS", 120000)
+
+    if navigation_timeout_ms < default_timeout_ms:
+        raise ValueError(
+            "BROWSER_NAV_TIMEOUT_MS must be >= BROWSER_DEFAULT_TIMEOUT_MS. "
+            f"Received default={default_timeout_ms}, navigation={navigation_timeout_ms}."
+        )
+
+    return {
+        "default_timeout_ms": default_timeout_ms,
+        "navigation_timeout_ms": navigation_timeout_ms,
+    }
+
+
 def _build_char_limits() -> dict[str, dict[str, int]]:
     """Builds field character constraints from .env with sane defaults."""
     limits = {
@@ -105,6 +122,7 @@ def load_config() -> dict[str, Any]:
 
     char_limits = _build_char_limits()
     retry_limits = _parse_retry_limits()
+    browser_timeouts = _parse_browser_timeouts()
 
     return {
         "EMAIL": email,
@@ -116,6 +134,8 @@ def load_config() -> dict[str, Any]:
         "LLM_RATE_LIMIT_RETRY_BASE_SECONDS": retry_limits["base_seconds"],
         "LLM_RATE_LIMIT_RETRY_MAX_WAIT_SECONDS": retry_limits["max_wait_seconds"],
         "LLM_RATE_LIMIT_MAX_RETRIES": retry_limits["max_retries"],
+        "BROWSER_DEFAULT_TIMEOUT_MS": browser_timeouts["default_timeout_ms"],
+        "BROWSER_NAV_TIMEOUT_MS": browser_timeouts["navigation_timeout_ms"],
         "LOGIN_URL": "https://vtu.internyet.in/sign-in",
         "DIARY_URL": "https://vtu.internyet.in/dashboard/student/student-diary",
         "STATE_FILE": Path("browser_state.json")

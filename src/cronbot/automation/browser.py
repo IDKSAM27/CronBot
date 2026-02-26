@@ -11,11 +11,19 @@ class DiaryAutomator:
     def __init__(self, p: Any, config: dict, status_logger: Callable[[str], None]):
         self.config = config
         self.log = status_logger
+        self.default_timeout_ms = int(self.config.get("BROWSER_DEFAULT_TIMEOUT_MS", 45000))
+        self.nav_timeout_ms = int(self.config.get("BROWSER_NAV_TIMEOUT_MS", 120000))
         
         self.log("Launching browser engine...")
         self.browser = p.chromium.launch(headless=False) 
         self.context = self._get_browser_context()
         self.page = self.context.new_page()
+        self.page.set_default_timeout(self.default_timeout_ms)
+        self.page.set_default_navigation_timeout(self.nav_timeout_ms)
+        self.log(
+            f"Browser wait policy: default={self.default_timeout_ms}ms, "
+            f"navigation={self.nav_timeout_ms}ms"
+        )
 
     def _get_browser_context(self) -> BrowserContext:
         if self.config["STATE_FILE"].exists():
@@ -49,10 +57,11 @@ class DiaryAutomator:
                 continue
         return ""
 
-    def _wait_for_continue_enabled(self, timeout_ms: int = 5000) -> bool:
+    def _wait_for_continue_enabled(self, timeout_ms: int | None = None) -> bool:
         """Waits until Continue button is enabled."""
+        effective_timeout = timeout_ms if timeout_ms is not None else self.default_timeout_ms
         continue_button = self.page.locator("button:has-text('Continue')").first
-        deadline = datetime.now().timestamp() + (timeout_ms / 1000.0)
+        deadline = datetime.now().timestamp() + (effective_timeout / 1000.0)
         while datetime.now().timestamp() < deadline:
             try:
                 if continue_button.is_enabled():
@@ -152,7 +161,7 @@ class DiaryAutomator:
         Uses a class-based selector first, with a broad fallback.
         """
         try:
-            self.page.wait_for_selector(".react-datepicker:visible", timeout=5000)
+            self.page.wait_for_selector(".react-datepicker:visible", timeout=self.default_timeout_ms)
             return self.page.locator(".react-datepicker:visible").first
         except Exception:
             pass
@@ -479,13 +488,13 @@ class DiaryAutomator:
                 "input[type='password'], input[name='password'], input[placeholder*='assword']"
             ).first
             
-            email_locator.wait_for(state="visible", timeout=15000)
+            email_locator.wait_for(state="visible", timeout=self.default_timeout_ms)
             email_locator.fill(self.config["EMAIL"])
             password_locator.fill(self.config["PASSWORD"])
             password_locator.press("Enter") 
             
             self.log("Waiting for dashboard to load...")
-            self.page.wait_for_url("**/dashboard**", timeout=20000)
+            self.page.wait_for_url("**/dashboard**", timeout=self.nav_timeout_ms)
             
             self.context.storage_state(path=str(self.config["STATE_FILE"]))
             self.log("Browser state saved.")
@@ -501,7 +510,7 @@ class DiaryAutomator:
 
     def fill_initial_selection(self, target_date: str):
         self.log(f"Selecting internship and setting date: {target_date}")
-        self.page.wait_for_selector("text='Select Internship'", timeout=10000)
+        self.page.wait_for_selector("text='Select Internship'", timeout=self.default_timeout_ms)
         
         dropdown = self.page.get_by_text("Choose internship", exact=True)
         dropdown.click()
@@ -520,7 +529,7 @@ class DiaryAutomator:
         day, month, year = self._parse_target_date(target_date)
 
         calendar = self._find_datepicker_root()
-        calendar.wait_for(state="visible", timeout=5000)
+        calendar.wait_for(state="visible", timeout=self.default_timeout_ms)
 
         self.log(f"Selecting month/year from datepicker: {month:02d}/{year}")
         self._select_datepicker_month(calendar, month)
@@ -541,7 +550,7 @@ class DiaryAutomator:
             )
             
         self.page.wait_for_timeout(500)
-        self.page.locator("button:has-text('Continue')").first.click(timeout=5000)
+        self.page.locator("button:has-text('Continue')").first.click(timeout=self.default_timeout_ms)
         self.page.wait_for_timeout(1000)
 
     def fill_and_submit_diary(self, data: Dict[str, Any]):
@@ -607,7 +616,7 @@ class DiaryAutomator:
                 if check_cli_callback():
                     self.log("CLI 'y' detected! Clicking the browser 'Save' button automatically...")
                     try:
-                        self.page.click("button:has-text('Save')", timeout=2000)
+                        self.page.click("button:has-text('Save')", timeout=self.default_timeout_ms)
                         self.page.wait_for_timeout(3000)
                     except Exception as e:
                         self.log(f"Could not click save automatically: {e}")
@@ -618,11 +627,12 @@ class DiaryAutomator:
         except Exception as e:
             self.log(f"Waiting for save interrupted: {e}")
 
-    def click_save_button(self, timeout_ms: int = 15000):
+    def click_save_button(self, timeout_ms: int | None = None):
         """Clicks Save button automatically and waits briefly for submit to complete."""
+        effective_timeout = timeout_ms if timeout_ms is not None else self.default_timeout_ms
         save_button = self.page.locator("button:has-text('Save')").first
-        save_button.wait_for(state="visible", timeout=timeout_ms)
-        save_button.click(timeout=timeout_ms)
+        save_button.wait_for(state="visible", timeout=effective_timeout)
+        save_button.click(timeout=effective_timeout)
         self.page.wait_for_timeout(3000)
         self.log("Auto-save completed.")
 
